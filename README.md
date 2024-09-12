@@ -42,7 +42,69 @@ Die App kann nun im Browser unter der URL http://localhost:3000 betrachtet werde
 
 
 ### Inbetriebnahme mit Docker Container
-folgt...
+1.  **Create a `Dockerfile`:**
+
+    Dockerfile
+
+    ```
+    FROM node:18-alpine
+    WORKDIR /app
+    COPY package*.json ./
+    RUN npm install
+    COPY . .
+    EXPOSE 3000
+    CMD ["npm", "start"]
+
+    ```
+
+
+2.  **Build and push the Docker image:**
+
+    Bash
+
+    ```
+    docker build -t  galaxy444/m346-ref-card-liam-gleeson .
+    docker push  galaxy444/m346-ref-card-liam-gleeson
+
+    ```
+
+
+### **Configure GitHub Actions:**
+
+1.  **Create a `.github/workflows/ci.yml` file:**
+
+    YAML
+
+    ```
+    name: CI
+
+    on:
+      push:
+        branches: [ main ]
+
+    jobs:
+      build:
+        runs-on: ubuntu-latest
+
+        steps:
+        - uses: actions/checkout@v3
+        - name: Build the Docker image
+          run: docker build -t galaxy444/m346-ref-card-liam-gleeson .
+        - name: Log in to Docker Hub
+          run: docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+        - name: Push the Docker image
+          run: docker push galaxy444/m346-ref-card-liam-gleeson
+
+    ```
+
+
+2.  **Add Docker Hub credentials as secrets:**
+
+    -   Create secrets in your GitHub repository settings.
+
+### **Conclusion:**
+
+This pipeline automates the process of building, testing, and deploying your React app. You can customize it further to include additional steps like running tests, deploying to a server, or using caching.
 
 
 
