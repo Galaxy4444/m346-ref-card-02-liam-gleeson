@@ -15,4 +15,4 @@ jobs:
       - name: Log in to Docker Hub
         run: docker login -u lgleeson123 -p  ${{ secrets.DOCKER_PASSWORD }}
       - name: Push the Docker image
-        run: docker push galaxy444/m346-ref-card-liam-gleeson
+        run: docker push lgleeson123/m346-ref-card-liam-gleeson
