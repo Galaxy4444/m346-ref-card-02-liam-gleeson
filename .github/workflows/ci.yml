@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Build the Docker image
-        run: docker build -t galaxy444/m346-ref-card-liam-gleeson .
+        run: docker build -t lgleeson123/m346-ref-card-liam-gleeson .
       - name: Log in to Docker Hub
         run: docker login -u lgleeson123 -p  ${{ secrets.DOCKER_PASSWORD }}
       - name: Push the Docker image
