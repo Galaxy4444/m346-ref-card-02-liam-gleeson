@@ -98,6 +98,7 @@ Die App kann nun im Browser unter der URL http://localhost:3000 betrachtet werde
 2. **Add Docker Hub credentials as secrets:**
 
     - Create secrets in your GitHub repository settings.
+    - Image of dockerhub: ![image](/images/dockerhub.png)
 
 ### **Conclusion:**
 
