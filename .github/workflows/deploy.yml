@@ -57,16 +57,32 @@ jobs:
           EC2_INSTANCE_DNS: "ec2-18-207-188-47.compute-1.amazonaws.com"  # Ensure this is correctly set
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/ec2-key.pem ubuntu@$EC2_INSTANCE_DNS << 'EOF'
-          # Update package list and install AWS CLI and Docker
-          sudo apt update
-          sudo apt install -y awscli docker.io
+          # Update package list
+          sudo apt update && sudo apt upgrade -y
           
+          # Install required packages for Docker
+          sudo apt install -y apt-transport-https ca-certificates curl software-properties-common
+  
+          # Add Docker's official GPG key
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+  
+          # Set up the stable repository
+          echo "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list
+  
+          # Update the package list again and install Docker
+          sudo apt update
+          sudo apt install -y docker-ce
+  
           # Start Docker service
           sudo systemctl start docker
           sudo systemctl enable docker
   
+          # Install AWS CLI using pip (recommended for newer versions)
+          sudo apt install -y python3-pip
+          pip3 install awscli --upgrade --user
+  
           # Log in to ECR and deploy the Docker image
-          $(aws ecr get-login --no-include-email --region '"${{ secrets.AWS_REGION }}"')
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_REPOSITORY }}
           docker pull ${{ secrets.ECR_REPOSITORY }}:latest
           docker stop my-docker-app || true
           docker rm my-docker-app || true
