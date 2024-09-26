@@ -49,15 +49,24 @@ jobs:
           PEM_FILE: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
         run: |
           echo "$PEM_FILE" > ~/ec2-key.pem
-          chmod 400 ~/ec2-key.pem  # Set permissions for the key file
+          chmod 400 ~/ec2-key.pem  # Ensure correct permissions
 
       - name: Deploy Docker Image to EC2
         env:
           AWS_REGION: ${{ secrets.AWS_REGION }}
-          EC2_INSTANCE_DNS: "ec2-18-207-188-47.compute-1.amazonaws.com"
+          EC2_INSTANCE_DNS: ${{ secrets.EC2_INSTANCE_DNS }}  # Ensure this is correctly set
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/ec2-key.pem ubuntu@$EC2_INSTANCE_DNS << 'EOF'
-          docker login -u AWS -p $(aws ecr get-login-password --region $AWS_REGION) ${{ secrets.ECR_REPOSITORY }}
+          # Update package list and install AWS CLI and Docker
+          sudo apt update
+          sudo apt install -y awscli docker.io
+          
+          # Start Docker service
+          sudo systemctl start docker
+          sudo systemctl enable docker
+  
+          # Log in to ECR and deploy the Docker image
+          $(aws ecr get-login --no-include-email --region '"${{ secrets.AWS_REGION }}"')
           docker pull ${{ secrets.ECR_REPOSITORY }}:latest
           docker stop my-docker-app || true
           docker rm my-docker-app || true
