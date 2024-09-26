@@ -61,7 +61,7 @@ jobs:
             "family": "liam-ref-card-app",
             "containerDefinitions": [
               {
-                "name": "my-docker-app",
+                "name": "liam-ref-card-app",
                 "image": "${{ secrets.ECR_REPOSITORY }}:latest",
                 "memory": 512,
                 "cpu": 256,
@@ -80,4 +80,4 @@ jobs:
 
       - name: Update ECS service
         run: |
-          aws ecs update-service --cluster ref-card-liam --service ref-card-liam-service --task-definition my-docker-app
+          aws ecs update-service --cluster ref-card-liam --service ref-card-liam-service --task-definition liam-ref-card-app
