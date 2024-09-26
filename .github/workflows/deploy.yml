@@ -1,0 +1,58 @@
+name: Build and Deploy Docker to AWS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up AWS credentials for session
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws configure set aws_session_token ${{ secrets.AWS_SESSION_TOKEN }}
+          aws configure set region ${{ secrets.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        run: |
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_REPOSITORY }}
+
+      - name: Build Docker image
+        run: docker build -t my-docker-app .
+
+      - name: Tag Docker image
+        run: docker tag my-docker-app:latest ${{ secrets.ECR_REPOSITORY }}:latest
+
+      - name: Push Docker image to Amazon ECR
+        run: docker push ${{ secrets.ECR_REPOSITORY }}:latest
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install AWS CLI
+        run: sudo apt-get install -y awscli
+
+      - name: Deploy Docker Image to EC2
+        run: |
+          aws ec2-instance-connect send-ssh-public-key \
+            --region ${{ secrets.AWS_REGION }} \
+            --instance-id ${{ secrets.EC2_INSTANCE_ID }} \
+            --instance-os-user ec2-user \
+            --ssh-public-key file://~/.ssh/id_rsa.pub
+          
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ec2-user@$(aws ec2 describe-instances --instance-ids ${{ secrets.EC2_INSTANCE_ID }} --query "Reservations[0].Instances[0].PublicIpAddress" --output text) << 'EOF'
+          docker login -u AWS -p $(aws ecr get-login-password --region ${{ secrets.AWS_REGION }}) ${{ secrets.ECR_REPOSITORY }}
+          docker pull ${{ secrets.ECR_REPOSITORY }}:latest
+          docker stop my-docker-app || true
+          docker rm my-docker-app || true
+          docker run -d --name my-docker-app -p 80:80 ${{ secrets.ECR_REPOSITORY }}:latest
+          EOF
