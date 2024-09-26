@@ -1,4 +1,4 @@
-name: Build and Deploy Docker to AWS
+name: Build and Deploy to EC2 Without Key Pair
 
 on:
   push:
@@ -13,21 +13,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up AWS credentials for session
+      - name: Set up AWS credentials
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
         run: |
-          aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
-          aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
-          aws configure set aws_session_token $AWS_SESSION_TOKEN
-          aws configure set region $AWS_DEFAULT_REGION
-
-      - name: Log in to Amazon ECR
-        run: |
-          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_REPOSITORY }}
+          echo "[default]" > ~/.aws/config
+          echo "aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}" >> ~/.aws/credentials
+          echo "aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> ~/.aws/credentials
+          echo "region=${{ secrets.AWS_REGION }}" >> ~/.aws/config
 
       - name: Build Docker image
         run: docker build -t my-docker-app .
@@ -46,27 +41,12 @@ jobs:
       - name: Install AWS CLI
         run: sudo apt-get install -y awscli
 
-      - name: Set up SSH key for EC2
+      - name: Deploy Docker Image to EC2 Using SSM
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          echo "${{ secrets.EC2_SSH_PUBLIC_KEY }}" > ~/.ssh/id_rsa.pub
-          chmod 600 ~/.ssh/id_rsa
-
-      - name: Send SSH public key to EC2
-        run: |
-          aws ec2-instance-connect send-ssh-public-key \
+          # Execute commands on EC2 using SSM
+          aws ssm send-command \
+            --document-name "AWS-RunShellScript" \
+            --targets "Key=instanceids,Values=${{ secrets.EC2_INSTANCE_ID }}" \
+            --parameters 'commands=["docker login -u AWS -p $(aws ecr get-login-password --region ${{ secrets.AWS_REGION }}) ${{ secrets.ECR_REPOSITORY }}", "docker pull ${{ secrets.ECR_REPOSITORY }}:latest", "docker stop my-docker-app || true", "docker rm my-docker-app || true", "docker run -d --name my-docker-app -p 80:80 ${{ secrets.ECR_REPOSITORY }}:latest"]' \
             --region ${{ secrets.AWS_REGION }} \
-            --instance-id ${{ secrets.EC2_INSTANCE_ID }} \
-            --instance-os-user ec2-user \
-            --ssh-public-key file://~/.ssh/id_rsa.pub
-
-      - name: Deploy Docker Image to EC2
-        run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ec2-user@$(aws ec2 describe-instances --instance-ids ${{ secrets.EC2_INSTANCE_ID }} --query "Reservations[0].Instances[0].PublicIpAddress" --output text) << 'EOF'
-          docker login -u AWS -p $(aws ecr get-login-password --region ${{ secrets.AWS_REGION }} ) ${{ secrets.ECR_REPOSITORY }}
-          docker pull ${{ secrets.ECR_REPOSITORY }}:latest
-          docker stop my-docker-app || true
-          docker rm my-docker-app || true
-          docker run -d --name my-docker-app -p 80:80 ${{ secrets.ECR_REPOSITORY }}:latest
-          EOF
+            --comment "Deploying Docker application"
