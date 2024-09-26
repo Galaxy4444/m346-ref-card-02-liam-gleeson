@@ -52,13 +52,16 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
         run: |
+          # Create .aws directory
+          mkdir -p ~/.aws
+          
           # Ensure AWS CLI can find credentials
           echo "[default]" > ~/.aws/config
           echo "[default]" > ~/.aws/credentials
           echo "aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}" >> ~/.aws/credentials
           echo "aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> ~/.aws/credentials
           echo "region=${{ secrets.AWS_REGION }}" >> ~/.aws/config
-
+          
           # Execute commands on EC2 using SSM
           aws ssm send-command \
             --document-name "AWS-RunShellScript" \
