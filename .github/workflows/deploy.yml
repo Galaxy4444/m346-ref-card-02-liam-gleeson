@@ -64,7 +64,7 @@ jobs:
       - name: Deploy Docker Image to EC2
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ec2-user@$(aws ec2 describe-instances --instance-ids ${{ secrets.EC2_INSTANCE_ID }} --query "Reservations[0].Instances[0].PublicIpAddress" --output text) << 'EOF'
-          docker login -u AWS -p $(aws ecr get-login-password --region $AWS_DEFAULT_REGION) ${{ secrets.ECR_REPOSITORY }}
+          docker login -u AWS -p $(aws ecr get-login-password --region ${{ secrets.AWS_REGION }} ) ${{ secrets.ECR_REPOSITORY }}
           docker pull ${{ secrets.ECR_REPOSITORY }}:latest
           docker stop my-docker-app || true
           docker rm my-docker-app || true
