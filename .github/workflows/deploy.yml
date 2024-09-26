@@ -55,29 +55,7 @@ jobs:
           aws configure set aws_session_token $AWS_SESSION_TOKEN
           aws configure set region $AWS_DEFAULT_REGION
 
-      - name: Register ECS task definition
-        run: |
-          echo '{
-            "family": "liam-ref-card-app",
-            "containerDefinitions": [
-              {
-                "name": "liam-ref-card-app",
-                "image": "${{ secrets.ECR_REPOSITORY }}:latest",
-                "memory": 512,
-                "cpu": 256,
-                "essential": true,
-                "portMappings": [
-                  {
-                    "containerPort": 80,
-                    "hostPort": 80
-                  }
-                ]
-              }
-            ]
-          }' > task-definition.json
-
-          aws ecs register-task-definition --cli-input-json file://task-definition.json
 
       - name: Update ECS service
         run: |
-          aws ecs update-service --cluster ref-card-liam --service ref-card-liam-service --task-definition liam-ref-card-app
+          aws ecs update-service --cluster ref-card-liam --service ref-card-liam-service --task-definition ref-card-liam
