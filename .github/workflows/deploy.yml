@@ -56,7 +56,7 @@ jobs:
       - name: Send SSH public key to EC2
         run: |
           aws ec2-instance-connect send-ssh-public-key \
-            --region $AWS_DEFAULT_REGION \
+            --region ${{ secrets.AWS_REGION }} \
             --instance-id ${{ secrets.EC2_INSTANCE_ID }} \
             --instance-os-user ec2-user \
             --ssh-public-key file://~/.ssh/id_rsa.pub
