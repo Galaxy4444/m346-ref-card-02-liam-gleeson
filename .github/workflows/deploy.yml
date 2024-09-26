@@ -38,62 +38,46 @@ jobs:
       - name: Push Docker image to Amazon ECR
         run: docker push ${{ secrets.ECR_REPOSITORY }}:latest
 
-
   deploy:
     needs: build
     runs-on: ubuntu-latest
 
     steps:
-      - name: Copy PEM file
+      - name: Set up AWS credentials for session
         env:
-          PEM_FILE: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
         run: |
-          echo "$PEM_FILE" > ~/ec2-key.pem
-          chmod 400 ~/ec2-key.pem  # Ensure correct permissions
+          aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+          aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+          aws configure set aws_session_token $AWS_SESSION_TOKEN
+          aws configure set region $AWS_DEFAULT_REGION
 
-      - name: Deploy Docker Image to EC2
-        env:
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-          EC2_INSTANCE_DNS: "ec2-18-207-188-47.compute-1.amazonaws.com"  # Ensure this is correctly set
+      - name: Register ECS task definition
         run: |
-          ssh -o StrictHostKeyChecking=no -i ~/ec2-key.pem ubuntu@$EC2_INSTANCE_DNS << 'EOF'
-          # Update package list
-          sudo apt update && sudo apt upgrade -y
-          
-          # Install required packages for Docker
-          sudo apt install -y apt-transport-https ca-certificates curl unzip
-  
-          # Add Docker's official GPG key
-          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-  
-          # Set up the stable repository
-          echo "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list
-  
-          # Update the package list again and install Docker
-          sudo apt update
-          sudo apt install -y docker-ce
-  
-          # Start Docker service
-          sudo systemctl start docker
-          sudo systemctl enable docker
-  
-          # Install AWS CLI
-          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-          unzip awscliv2.zip
-          sudo ./aws/install
-          aws --version  # Verify installation
-  
-          # Set AWS credentials for the session
-          echo "[default]" > ~/.aws/credentials
-          echo "aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}" >> ~/.aws/credentials
-          echo "aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> ~/.aws/credentials
-  
-          # Authenticate Docker with ECR
-          aws ecr get-login-password --region $AWS_REGION | sudo docker login --username AWS --password-stdin ${{ secrets.ECR_REPOSITORY }}
-  
-          # Pull and run the Docker image
-          sudo docker pull ${{ secrets.ECR_REPOSITORY }}:latest
-          sudo docker stop my-docker-app || true
-          sudo docker rm my-docker-app || true
-          sudo docker run -d --name my-docker-app -p 80:80 ${{ secrets.ECR_REPOSITORY }}:latest
-          EOF
+          echo '{
+            "family": "liam-ref-card-app",
+            "containerDefinitions": [
+              {
+                "name": "my-docker-app",
+                "image": "${{ secrets.ECR_REPOSITORY }}:latest",
+                "memory": 512,
+                "cpu": 256,
+                "essential": true,
+                "portMappings": [
+                  {
+                    "containerPort": 80,
+                    "hostPort": 80
+                  }
+                ]
+              }
+            ]
+          }' > task-definition.json
+
+          aws ecs register-task-definition --cli-input-json file://task-definition.json
+
+      - name: Update ECS service
+        run: |
+          aws ecs update-service --cluster ref-card-liam --service ref-card-liam-service --task-definition my-docker-app
