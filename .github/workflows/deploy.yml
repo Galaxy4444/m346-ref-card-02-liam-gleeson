@@ -54,7 +54,7 @@ jobs:
       - name: Deploy Docker Image to EC2
         env:
           AWS_REGION: ${{ secrets.AWS_REGION }}
-          EC2_INSTANCE_DNS: ${{ secrets.EC2_INSTANCE_DNS }}  # Ensure this is correctly set
+          EC2_INSTANCE_DNS: "ec2-18-207-188-47.compute-1.amazonaws.com"  # Ensure this is correctly set
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/ec2-key.pem ubuntu@$EC2_INSTANCE_DNS << 'EOF'
           # Update package list and install AWS CLI and Docker
