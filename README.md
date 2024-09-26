@@ -127,29 +127,64 @@ The workflow is triggered on a push to the `main` branch and consists of two mai
 - Afterwards it will be sent to ecr and should look like this:
 - Image of dockerhub: ![image](/images/ecr.png)
 
-### 2. Create EC2 instance
+### 2. Creating an ECS cluster
 
-- Enter name:
-- Image of enter name: ![image](/images/name7.png)
-- Afterwards choose ubuntu, then leave everything as it is
-- Generate new key pair: ![image](images/key_pair.png)
-- then copy the file contents and add them to the secrets
+![ECS Cluster](./images/aws-ecs-cluster-creation.png)
 
-### 3. Deploy Job
+After creation, you should be able to find the cluster in the list.
 
-- **Depends on**: `build`
-- **Runs on**: `ubuntu-latest`
-- **Steps**:
-    1. **Copy PEM File**: Saves the private key for SSH access to the EC2 instance.
-    2. **Deploy Docker Image to EC2**: Connects to the EC2 instance via SSH to:
-        - Update the package list.
-        - Install Docker and AWS CLI.
-        - Authenticate with ECR.
-        - Pull the Docker image.
-        - Stop and remove any existing containers.
-        - Run the new Docker container.
+### 3. Creating an ECS task definition
 
-    - Now it will run on the ec2 and be accesible
+![ECS Task Definition](./images/aws-ecs-taskdefinition-creation.png)
+
+For the environment variables, put in the details you already know. For the production environment, there is a JSON file for the task definition, located [here](./.github/aws/task-definition-prod.json). The pipeline will overwrite wrongly configured settings. Make sure tough, that the development task definition is correct.
+
+### 4. Creating an ECS service
+
+After creating the task definition, you can create a service for the task.
+
+![ECS Service](./images/aws-ecs-service-creation.png)
+
+As soon as the service is running, you can do the following to make sure that the application is now working correctly.
+
+![ECS Service IP Address](./images/aws-ecs-task-ip-address.png)
+
+
+### 5. Deploy Job
+
+### `needs: build:`
+Indicates that this job depends on a previous job named `build` and will only run after it has completed successfully.
+
+### `runs-on: ubuntu-latest:`
+Specifies that the job will run in the latest version of an Ubuntu Linux environment provided by GitHub Actions.
+
+### `steps::`
+Defines the individual steps that will be executed in this job.
+
+### Step 1: Set up AWS credentials for session:
+- **`name:`** A human-readable name for this step, indicating its purpose.
+- **`env:`** Sets environment variables that will be available in the `run` command:
+    - **`AWS_ACCESS_KEY_ID:`** The access key for your AWS account.
+    - **`AWS_SECRET_ACCESS_KEY:`** The secret key for your AWS account.
+    - **`AWS_SESSION_TOKEN:`** A session token for temporary AWS credentials.
+    - **`AWS_DEFAULT_REGION:`** The default region for AWS services.
+- **`run:`** Contains shell commands that configure the AWS CLI:
+    ```bash
+    aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+    aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+    aws configure set aws_session_token $AWS_SESSION_TOKEN
+    aws configure set region $AWS_DEFAULT_REGION
+    ```
+  This sets up the AWS CLI environment to use the specified credentials and region for subsequent commands.
+
+### Step 2: Update ECS service:
+- **`name:`** Another human-readable label for this step.
+- **`run:`** Contains the command to update an ECS service:
+    ```bash
+    aws ecs update-service --cluster ref-card-liam --service ref-card-liam-service --task-defi
+    ```
+  This command is intended to update the specified ECS service within the `ref-card-liam` cluster. However, the command appears to be incomplete, as it ends with `--task-defi`, which should specify the task definition to use for the update.
+
 
 ## Prerequisites
 
