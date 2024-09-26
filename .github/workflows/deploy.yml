@@ -52,6 +52,15 @@ jobs:
           echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           echo "${{ secrets.EC2_SSH_PUBLIC_KEY }}" > ~/.ssh/id_rsa.pub
           chmod 600 ~/.ssh/id_rsa
+
+      - name: Send SSH public key to EC2
+        run: |
+          aws ec2-instance-connect send-ssh-public-key \
+            --region ${{ secrets.AWS_REGION }} \
+            --instance-id ${{ secrets.EC2_INSTANCE_ID }} \
+            --instance-os-user ec2-user \
+            --ssh-public-key file://~/.ssh/id_rsa.pub
+
       - name: Deploy Docker Image to EC2
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ec2-user@$(aws ec2 describe-instances --instance-ids ${{ secrets.EC2_INSTANCE_ID }} --query "Reservations[0].Instances[0].PublicIpAddress" --output text) << 'EOF'
