@@ -56,7 +56,7 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
           EC2_INSTANCE_DNS: "ec2-18-207-188-47.compute-1.amazonaws.com"
         run: |
-          ssh -o StrictHostKeyChecking=no -i ~/ec2-key.pem ec2-user@$EC2_INSTANCE_DNS << 'EOF'
+          ssh -o StrictHostKeyChecking=no -i ~/ec2-key.pem ubuntu@$EC2_INSTANCE_DNS << 'EOF'
           docker login -u AWS -p $(aws ecr get-login-password --region $AWS_REGION) ${{ secrets.ECR_REPOSITORY }}
           docker pull ${{ secrets.ECR_REPOSITORY }}:latest
           docker stop my-docker-app || true
